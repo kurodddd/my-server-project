@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>射水市 飲食店検索 (API連携版)</title>
+    <title>射水市 飲食店検索 (最終版)</title>
     <style>
         :root{--primary-color:#007bff;--light-gray:#f4f7f9;--dark-gray:#34495e;--white:#fff;--danger-color:#dc3545}
         body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",sans-serif;margin:0;padding:1em;background-color:var(--light-gray);color:var(--dark-gray)}
@@ -37,7 +37,7 @@
 <body id="page-body">
     <div class="container">
         <div class="header">
-            <h1>射水市 飲食店検索 (API版)</h1>
+            <h1>射水市 飲食店検索 (最終版)</h1>
             <div class="user-controls">
                 <span id="user-display">未ログイン</span>
                 <button id="login-btn" class="main-btn">ログイン</button>
@@ -60,13 +60,11 @@
     </div></div>
 
 <script>
-    // ★★★ この部分が書き換わっています ★★★
-    let allRestaurants = []; // 最初は空の配列として定義
-    
+    let allRestaurants = []; // 最初は空。サーバーから取得したデータが入る。
     let currentUser = sessionStorage.getItem('currentUser');
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
-    // --- 要素取得 ---
+    // --- 主要なHTML要素をまとめて取得 ---
     const elements = {
         restaurantList: document.getElementById('restaurant-list'),
         modal: document.getElementById('main-modal'),
@@ -83,24 +81,16 @@
         resultsCounter: document.getElementById('results-counter')
     };
 
-    // --- 初期化 ---
+    // --- 初期化処理 ---
     document.addEventListener('DOMContentLoaded', async () => {
-        // サーバーに問い合わせて、全レストランのリストを取得する
-        try {
-            elements.resultsCounter.textContent = 'お店の情報を取得中...';
-            const response = await fetch('/api/restaurants');
-            if (!response.ok) throw new Error('サーバーからのデータ取得に失敗しました。');
-            allRestaurants = await response.json();
-        } catch (error) {
-            console.error(error);
-            elements.resultsCounter.textContent = '情報取得エラー';
-        }
-        
+        // サーバーから飲食店リストを取得する
+        await fetchRestaurants();
+
         // 取得したデータでページを初期化
         setupCategoryButtons();
         updateUI();
 
-        // 残りのイベントリスナーを設定
+        // イベントリスナーを設定
         elements.searchInput.addEventListener('keyup', renderList);
         document.querySelector('.close-btn').onclick = () => elements.modal.style.display = 'none';
         elements.loginBtn.onclick = showLoginModal;
@@ -108,8 +98,21 @@
         elements.historyBtn.onclick = showHistory;
         elements.adminTrigger.onclick = enterAdminMode;
     });
+    
+    // --- データ取得 ---
+    async function fetchRestaurants() {
+        try {
+            elements.resultsCounter.textContent = 'お店の情報を取得中...';
+            const response = await fetch('/api/restaurants');
+            if (!response.ok) throw new Error('サーバーからのデータ取得に失敗しました。');
+            allRestaurants = await response.json();
+        } catch (error) {
+            console.error(error);
+            elements.resultsCounter.textContent = '情報取得エラー。サーバーログを確認してください。';
+        }
+    }
 
-    // ★★★ これ以降の関数は、前回のコードと全く同じです ★★★
+    // --- UI制御 ---
     function updateUI() {
         if (currentUser) {
             elements.userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
@@ -123,7 +126,7 @@
             elements.historyBtn.style.display = 'none';
         }
         elements.pageBody.classList.toggle('admin-mode', isAdmin);
-        renderList();
+        renderList(); // UI更新のたびにリストも再描画
     }
 
     function renderList() {
@@ -134,7 +137,7 @@
             (r.name.toUpperCase().includes(searchText))
         );
         elements.resultsCounter.textContent = `表示件数: ${filtered.length}件`;
-        elements.restaurantList.innerHTML = '';
+        elements.restaurantList.innerHTML = ''; // リストをクリア
         filtered.forEach(r => {
             const li = document.createElement('li');
             li.className = 'restaurant-item';
@@ -149,8 +152,9 @@
     }
 
     function setupCategoryButtons() {
+        // 取得したデータからカテゴリのリストを動的に生成
         const categories = ['すべて', ...new Set(allRestaurants.map(r => r.category))];
-        elements.categoryFilters.innerHTML = '';
+        elements.categoryFilters.innerHTML = ''; // カテゴリ欄をクリア
         categories.forEach(cat => {
             const btn = document.createElement('button');
             btn.className = 'category-btn';
@@ -159,12 +163,14 @@
             btn.addEventListener('click', () => {
                 elements.categoryFilters.querySelector('.active')?.classList.remove('active');
                 btn.classList.add('active');
-                renderList();
+                renderList(); // カテゴリクリックでリストを再描画
             });
             elements.categoryFilters.appendChild(btn);
         });
     }
     
+    // --- ログイン・履歴・口コミ関連の関数（前回のコードと同じ） ---
+    // (省略せず、全て含めています)
     function showLoginModal() {
         elements.modalTitle.textContent = 'ログインまたは新規登録';
         elements.modalBody.innerHTML = `
@@ -177,43 +183,31 @@
         elements.modal.style.display = 'block';
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
-            const username = e.target.username.value;
-            const password = e.target.password.value;
-            const res = await fetch('/api/login', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username, password })
-            });
+            const username = e.target.username.value; const password = e.target.password.value;
+            const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
             if (res.ok) {
-                currentUser = username;
-                sessionStorage.setItem('currentUser', username);
-                updateUI();
-                elements.modal.style.display = 'none';
+                currentUser = username; sessionStorage.setItem('currentUser', username);
+                updateUI(); elements.modal.style.display = 'none';
             } else { alert((await res.json()).message); }
         };
         document.getElementById('register-btn').onclick = async () => {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            const username = document.getElementById('username').value; const password = document.getElementById('password').value;
             if (!username || !password) { alert("ユーザー名とパスワードを入力してください。"); return; }
-            const res = await fetch('/api/register', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username, password })
-            });
+            const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
             alert((await res.json()).message);
         };
     }
 
     function logout() {
         currentUser = null; isAdmin = false;
-        sessionStorage.removeItem('currentUser');
-        sessionStorage.removeItem('isAdmin');
+        sessionStorage.removeItem('currentUser'); sessionStorage.removeItem('isAdmin');
         updateUI();
     }
 
     function enterAdminMode() {
         const pass = prompt("管理者パスワードを入力してください:");
         if (pass === "prodesu") {
-            isAdmin = true;
-            sessionStorage.setItem('isAdmin', 'true');
+            isAdmin = true; sessionStorage.setItem('isAdmin', 'true');
             if (!currentUser) showLoginModal(); else updateUI();
             alert("管理者モードになりました。");
         } else { alert("パスワードが違います。"); }
@@ -221,10 +215,7 @@
 
     async function showDetails(id, name) {
         if (currentUser) {
-            await fetch(`/api/history/${currentUser}`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ restaurantId: id, restaurantName: name })
-            });
+            await fetch(`/api/history/${currentUser}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ restaurantId: id, restaurantName: name }) });
         }
         window.open(`https://www.google.com/search?q=${encodeURIComponent(name + " 射水市")}`, '_blank');
     }
@@ -235,11 +226,8 @@
         const history = await res.json();
         elements.modalTitle.textContent = `${currentUser}の閲覧履歴`;
         let body = '<ul>';
-        if (history.length > 0) {
-            history.forEach(item => { body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`; });
-        } else {
-            body += '<li>閲覧履歴はありません。</li>';
-        }
+        if (history.length > 0) { history.forEach(item => { body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`; });
+        } else { body += '<li>閲覧履歴はありません。</li>'; }
         body += `</ul>${isAdmin ? `<button class="delete-btn" style="display:inline-block" onclick="clearHistory('${currentUser}')">このユーザーの履歴を全て削除</button>` : ''}`;
         elements.modalBody.innerHTML = body;
         elements.modal.style.display = 'block';
@@ -257,13 +245,8 @@
         const reviews = await res.json();
         elements.modalTitle.textContent = `${name} の口コミ`;
         let body = '<div>';
-        if (reviews.length > 0) {
-            reviews.forEach(r => {
-                body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>${new Date(r.timestamp).toLocaleString()}</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`;
-            });
-        } else {
-            body += '<p>まだ口コミはありません。</p>';
-        }
+        if (reviews.length > 0) { reviews.forEach(r => { body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>${new Date(r.timestamp).toLocaleString()}</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`; });
+        } else { body += '<p>まだ口コミはありません。</p>'; }
         body += `</div><form onsubmit="submitReview(event, '${id}', '${name}')">
             <textarea placeholder="${currentUser ? '口コミを投稿する...' : 'ログインしてください'}" ${!currentUser ? 'disabled' : ''}></textarea>
             <button type="submit" ${!currentUser ? 'disabled' : ''}>投稿</button>
@@ -276,19 +259,13 @@
         event.preventDefault();
         const text = event.target.querySelector('textarea').value;
         if (!text || !currentUser) return;
-        await fetch(`/api/reviews/${id}`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ username: currentUser, text })
-        });
+        await fetch(`/api/reviews/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: currentUser, text }) });
         showReviews(id, name);
     }
 
     async function deleteReview(id, name, timestamp) {
         if (confirm("この口コミを削除しますか？")) {
-            await fetch(`/api/reviews/${id}`, {
-                method: 'DELETE', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ timestamp })
-            });
+            await fetch(`/api/reviews/${id}`, { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ timestamp }) });
             showReviews(id, name);
         }
     }

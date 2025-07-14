@@ -1,80 +1,34 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios'); // 追加した部品を読み込む
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
 app.use(express.static(__dirname));
 
 const dbPath = path.join(__dirname, 'database.json');
+const restaurantsPath = path.join(__dirname, 'restaurants.json'); // 新しいファイルパス
 
 // --- データベース読み書き ---
 const readDB = () => JSON.parse(fs.readFileSync(dbPath, 'utf8'));
 const writeDB = (data) => fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
 
-
-// --- OpenStreetMapから飲食店データを取得するAPI ---
+// --- 飲食店データをファイルから取得するAPI ---
 app.get('/api/restaurants', async (req, res) => {
-    // OpenStreetMapのOverpass APIエンドポイント
-    const overpassUrl = 'https://overpass-api.de/api/interpreter';
-
-    // 射水市の範囲内で「レストラン」「カフェ」「居酒屋」などを検索するクエリ
-    const query = `
-        [out:json][timeout:25];
-        (
-          area["ISO3166-2"="JP-16"]["name"="射水市"]->.searchArea;
-          (
-            node["amenity"~"restaurant|cafe|bar|pub|izakaya|fast_food"](area.searchArea);
-            way["amenity"~"restaurant|cafe|bar|pub|izakaya|fast_food"](area.searchArea);
-            relation["amenity"~"restaurant|cafe|bar|pub|izakaya|fast_food"](area.searchArea);
-          );
-        );
-        out center;
-    `;
-
     try {
-        // Overpass APIにクエリを送信
-        const response = await axios.post(overpassUrl, `data=${encodeURIComponent(query)}`);
-        
-        // 取得したデータを使いやすい形式に変換
-        const restaurants = response.data.elements
-            .filter(element => element.tags && element.tags.name) // 名前のないデータは除外
-            .map(element => {
-                let category = 'その他'; // デフォルトカテゴリ
-                const amenity = element.tags.amenity;
-                if (amenity === 'restaurant') category = '洋食・レストラン';
-                if (amenity === 'cafe') category = 'カフェ・パン';
-                if (amenity === 'izakaya') category = '居酒屋・バー';
-                if (amenity === 'bar' || amenity === 'pub') category = '居酒屋・バー';
-                if (element.tags.cuisine === 'sushi') category = '寿司';
-                if (element.tags.cuisine === 'ramen' || element.tags.cuisine === 'chinese') category = 'ラーメン・中華';
-                if (element.tags.cuisine === 'udon' || element.tags.cuisine === 'soba') category = 'うどん・そば';
-                if (element.tags.cuisine === 'yakiniku') category = '焼肉';
-
-                return {
-                    id: element.id, // OSMのID
-                    name: element.tags.name,
-                    category: category
-                };
-            });
-        
-        // 重複を除外して返す
-        const uniqueRestaurants = Array.from(new Map(restaurants.map(r => [r.name, r])).values());
-        res.json(uniqueRestaurants);
-
+        // restaurants.jsonファイルを読み込む
+        const data = fs.readFileSync(restaurantsPath, 'utf8');
+        const restaurants = JSON.parse(data);
+        res.json(restaurants);
     } catch (error) {
-        console.error('OpenStreetMap API Error:', error);
-        res.status(500).json({ message: "外部APIからの飲食店データの取得に失敗しました。" });
+        console.error('Error reading restaurants.json:', error);
+        res.status(500).json({ message: "飲食店データの取得に失敗しました。" });
     }
 });
 
 
 // --- ログインや口コミ、履歴のAPI（これらは変更なし）---
-// ... (前回のserver.jsから、ユーザー登録以下のAPIコードをここにペースト) ...
-// (app.post('/api/register', ...), app.post('/api/login', ...), etc.)
 app.post('/api/register', (req, res) => {
     const db = readDB();
     const { username, password } = req.body;
