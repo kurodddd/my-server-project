@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>射水市 飲食店検索 (サーバー連携版)</title>
+    <style>body{font-family:sans-serif;margin:2em}h1{text-align:center}.container{max-width:800px;margin:auto}.restaurant-item{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #ddd}.modal{display:none;position:fixed;z-index:1;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5)}.modal-content{background-color:#fefefe;margin:15% auto;padding:20px;width:80%;max-width:500px}.close-btn{float:right;font-size:28px;font-weight:700;cursor:pointer}</style>
+</head>
+<body>
+    <div class="container">
+        <h1>射水市 飲食店検索 (サーバー連携版)</h1>
+        <ul id="restaurant-list" class="restaurant-list"></ul>
+    </div>
+
+    <div id="main-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2 id="modal-title"></h2>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+<script>
+    const allRestaurants = [
+        { id: "r001", name: "きときと食堂" }, { id: "r002", name: "meso" },
+        { id: "r009", name: "隠れ家居酒屋 海彩" }, { id: "r014", name: "中華そばげんじ" },
+        { id: "r019", name: "番やのすし 小杉店" }, { id: "r024", name: "Café de Repos" }
+    ];
+
+    const restaurantListEl = document.getElementById('restaurant-list');
+    const modal = document.getElementById('main-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    // 初期表示
+    renderList();
+
+    // イベントリスナー
+    document.querySelector('.close-btn').onclick = () => modal.style.display = 'none';
+
+    function renderList() {
+        restaurantListEl.innerHTML = '';
+        allRestaurants.forEach(r => {
+            const li = document.createElement('li');
+            li.className = 'restaurant-item';
+            li.innerHTML = `
+                <span>${r.name}</span>
+                <button onclick="showReviews('${r.id}', '${r.name}')">口コミ</button>`;
+            restaurantListEl.appendChild(li);
+        });
+    }
+
+    async function showReviews(restaurantId, restaurantName) {
+        modalTitle.textContent = `${restaurantName} の口コミ`;
+        
+        // サーバーから口コミを取得する
+        const response = await fetch(`/api/reviews/${restaurantId}`);
+        const reviews = await response.json();
+
+        let reviewsHtml = '<div>';
+        if (reviews.length > 0) {
+            reviews.forEach(review => {
+                reviewsHtml += `<p>${review}</p>`;
+            });
+        } else {
+            reviewsHtml += '<p>まだ口コミはありません。</p>';
+        }
+        reviewsHtml += '</div>';
+
+        modalBody.innerHTML = `
+            ${reviewsHtml}
+            <form onsubmit="submitReview(event, '${restaurantId}', '${restaurantName}')">
+                <textarea placeholder="口コミを投稿する..."></textarea>
+                <button type="submit">投稿</button>
+            </form>`;
+        modal.style.display = 'block';
+    }
+
+    async function submitReview(event, restaurantId, restaurantName) {
+        event.preventDefault();
+        const reviewText = event.target.querySelector('textarea').value;
+        if (!reviewText) return;
+
+        // サーバーに新しい口コミを送信する
+        await fetch(`/api/reviews/${restaurantId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ review: reviewText })
+        });
+
+        // 表示を更新
+        showReviews(restaurantId, restaurantName);
+    }
+</script>
+</body>
+</html>
