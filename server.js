@@ -10,11 +10,40 @@ app.use(express.static(__dirname));
 
 const dbPath = path.join(__dirname, 'database.json');
 
-// データベースファイルを読み書きするヘルパー関数
-const readDB = () => JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+// --- データベース読み書き ---
+const readDB = () => {
+    if (!fs.existsSync(dbPath)) {
+        fs.writeFileSync(dbPath, JSON.stringify({ users: {}, reviews: {}, history: {} }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+};
 const writeDB = (data) => fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
 
-// --- API エンドポイント ---
+// --- APIエンドポイント ---
+
+// ユーザー新規登録
+app.post('/api/register', (req, res) => {
+    const db = readDB();
+    const { username, password } = req.body;
+    if (db.users[username]) {
+        return res.status(400).json({ message: "このユーザー名は既に使用されています。" });
+    }
+    // ★注意：実際のアプリではパスワードはハッシュ化して保存します
+    db.users[username] = password;
+    writeDB(db);
+    res.status(201).json({ message: "登録が完了しました。" });
+});
+
+// ログイン
+app.post('/api/login', (req, res) => {
+    const db = readDB();
+    const { username, password } = req.body;
+    if (db.users[username] && db.users[username] === password) {
+        res.status(200).json({ message: "ログインに成功しました。" });
+    } else {
+        res.status(401).json({ message: "ユーザー名またはパスワードが違います。" });
+    }
+});
 
 // 口コミの取得
 app.get('/api/reviews/:restaurantId', (req, res) => {
@@ -27,12 +56,9 @@ app.post('/api/reviews/:restaurantId', (req, res) => {
     const db = readDB();
     const { restaurantId } = req.params;
     const { username, text } = req.body;
-    
-    if (!db.reviews[restaurantId]) {
-        db.reviews[restaurantId] = [];
-    }
+    if (!db.reviews[restaurantId]) db.reviews[restaurantId] = [];
     const newReview = { username, text, timestamp: new Date().toISOString() };
-    db.reviews[restaurantId].push(newReview);
+    db.reviews[restaurantId].unshift(newReview); // 新しい順にするためunshiftに変更
     writeDB(db);
     res.status(201).json(newReview);
 });
@@ -41,15 +67,13 @@ app.post('/api/reviews/:restaurantId', (req, res) => {
 app.delete('/api/reviews/:restaurantId', (req, res) => {
     const db = readDB();
     const { restaurantId } = req.params;
-    const { timestamp } = req.body; // タイムスタンプで一意に識別
-    
+    const { timestamp } = req.body;
     if (db.reviews[restaurantId]) {
-        db.reviews[restaurantId] = db.reviews[restaurantId].filter(review => review.timestamp !== timestamp);
+        db.reviews[restaurantId] = db.reviews[restaurantId].filter(r => r.timestamp !== timestamp);
         writeDB(db);
     }
     res.status(204).send();
 });
-
 
 // 閲覧履歴の取得
 app.get('/api/history/:username', (req, res) => {
@@ -62,15 +86,13 @@ app.post('/api/history/:username', (req, res) => {
     const db = readDB();
     const { username } = req.params;
     const { restaurantId, restaurantName } = req.body;
-
-    if (!db.history[username]) {
-        db.history[username] = [];
-    }
-    // 既に履歴にあれば何もしない（重複を防ぐ）
-    if (!db.history[username].some(item => item.id === restaurantId)) {
-        db.history[username].push({ id: restaurantId, name: restaurantName, viewedAt: new Date().toISOString() });
-        writeDB(db);
-    }
+    if (!db.history[username]) db.history[username] = [];
+    // 履歴の先頭に追加し、重複を削除
+    const newHistory = [{ id: restaurantId, name: restaurantName, viewedAt: new Date().toISOString() }];
+    db.history[username] = newHistory.concat(db.history[username].filter(item => item.id !== restaurantId));
+    // 履歴を最新20件に制限
+    db.history[username] = db.history[username].slice(0, 20);
+    writeDB(db);
     res.status(201).send();
 });
 
@@ -78,13 +100,10 @@ app.post('/api/history/:username', (req, res) => {
 app.delete('/api/history/:username', (req, res) => {
     const db = readDB();
     const { username } = req.params;
-    if (db.history[username]) {
-        delete db.history[username];
-        writeDB(db);
-    }
+    if (db.history[username]) delete db.history[username];
+    writeDB(db);
     res.status(204).send();
 });
-
 
 // --- サーバー起動 ---
 app.listen(PORT, () => {

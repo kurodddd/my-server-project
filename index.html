@@ -2,121 +2,213 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>射水市 飲食店検索 (多機能版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>射水市 飲食店検索 (Pro版)</title>
     <style>
-        body{font-family:sans-serif;margin:2em;background-color:#f9f9f9}
-        .container{max-width:800px;margin:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 0 10px #ddd}
-        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1em}
-        .user-controls button{margin-left:10px}
-        .restaurant-item{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #eee}
-        .modal{display:none;position:fixed;z-index:1;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5)}
-        .modal-content{background-color:#fefefe;margin:10% auto;padding:20px;width:80%;max-width:500px;border-radius:8px}
-        .close-btn{float:right;font-size:28px;font-weight:700;cursor:pointer}
+        :root{--primary-color:#007bff;--light-gray:#f4f7f9;--dark-gray:#34495e;--white:#fff;--danger-color:#dc3545}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",sans-serif;margin:0;padding:1em;background-color:var(--light-gray);color:var(--dark-gray)}
+        .container{max-width:800px;margin:20px auto;padding:20px;background-color:var(--white);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+        .header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:1.5em;gap:10px}
+        .user-controls{display:flex;align-items:center;gap:10px}
+        #history-btn{display:none;}
+        .main-btn{padding:8px 16px;font-size:14px;border-radius:20px;cursor:pointer;border:1px solid var(--primary-color);background-color:var(--white);color:var(--primary-color)}
+        #category-filters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:1em}
+        .category-btn{padding:8px 16px;font-size:14px;font-weight:500;color:var(--dark-gray);background-color:#ecf0f1;border:none;border-radius:20px;cursor:pointer}
+        .category-btn.active{color:var(--white);background-color:var(--primary-color)}
+        #search-input{width:100%;padding:12px 15px;font-size:16px;border:1px solid #dfe4ea;border-radius:8px;box-sizing:border-box}
+        #results-counter{text-align:right;margin:1em 0;color:#555;font-weight:500}
+        .restaurant-list{list-style-type:none;padding:0}
+        .restaurant-item{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #eee}
+        .restaurant-buttons{display:flex;gap:8px}
+        .reviews-btn,.details-btn{padding:8px 12px;font-size:13px;border-radius:5px;cursor:pointer;border:1px solid}
+        .reviews-btn{color:var(--white);background-color:#28a745;border-color:#28a745}
+        .details-btn{color:var(--primary-color);background-color:var(--white);border-color:var(--primary-color)}
+        footer{text-align:center;margin-top:2em;color:#aaa}#admin-trigger{cursor:pointer}
+        .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5)}
+        .modal-content{background-color:#fefefe;margin:10% auto;padding:20px;width:90%;max-width:500px;border-radius:8px}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding-bottom:10px}
+        .modal-header h2{margin:0}
+        .close-btn{font-size:28px;font-weight:700;cursor:pointer}
+        .form-group{margin-bottom:1em}.form-group label{display:block;margin-bottom:5px}.form-group input,.form-group textarea{width:100%;padding:8px;box-sizing:border-box}
         .review-item{padding:8px 0;border-bottom:1px solid #eee}.review-item small{color:#888}
-        .delete-btn{color:red;border:none;background:0 0;cursor:pointer;margin-left:10px;display:none}
+        .delete-btn{color:var(--danger-color);border:none;background:0 0;cursor:pointer;margin-left:10px;display:none}
         .admin-mode .delete-btn{display:inline}
     </style>
 </head>
 <body id="page-body">
     <div class="container">
         <div class="header">
-            <h1>射水市 飲食店検索</h1>
+            <h1>射水市 飲食店検索 Pro</h1>
             <div class="user-controls">
                 <span id="user-display">未ログイン</span>
-                <button id="login-btn">ログイン</button>
-                <button id="history-btn" style="display:none;">閲覧履歴</button>
-                <button id="logout-btn" style="display:none;">ログアウト</button>
+                <button id="login-btn" class="main-btn">ログイン</button>
+                <button id="history-btn" class="main-btn" style="display:none;">閲覧履歴</button>
+                <button id="logout-btn" class="main-btn" style="display:none;">ログアウト</button>
             </div>
         </div>
+        <div class="search-controls">
+            <div id="category-filters"></div>
+            <input type="text" id="search-input" placeholder="店名でさらに絞り込み...">
+        </div>
+        <div id="results-counter"></div>
         <ul id="restaurant-list" class="restaurant-list"></ul>
     </div>
-    
-    <footer><p style="text-align:center;color:#aaa"><span id="admin-trigger" style="cursor:pointer;">©</span></p></footer>
+    <footer><p><span id="admin-trigger">©</span></p></footer>
 
-    <div id="main-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h2 id="modal-title"></h2><div id="modal-body"></div>
-        </div>
-    </div>
+    <div id="main-modal" class="modal"><div class="modal-content">
+        <div class="modal-header"><h2 id="modal-title"></h2><span class="close-btn">&times;</span></div>
+        <div id="modal-body"></div>
+    </div></div>
 
 <script>
+    // --- データ ---
     const allRestaurants = [
-        { id: "r001", name: "きときと食堂" }, { id: "r002", name: "meso" }, { id: "r009", name: "隠れ家居酒屋 海彩" },
-        { id: "r014", name: "中華そばげんじ" }, { id: "r019", name: "番やのすし 小杉店" }, { id: "r024", name: "Café de Repos" }
+        { id: "r001", name: "きときと食堂", category: "和食・食堂" },{ id: "r002", name: "meso", category: "洋食・レストラン" },{ id: "r003", name: "ユニコネルモンド", category: "洋食・レストラン" },{ id: "r004", name: "げん太", category: "和食・食堂" },{ id: "r005", name: "不二屋", category: "うどん・そば" },{ id: "r006", name: "イルコンパーニョ", category: "洋食・レストラン" },{ id: "r007", name: "リリーベリー", category: "洋食・レストラン" },{ id: "r008", name: "グリルはやし", category: "洋食・レストラン" },{ id: "r009", name: "隠れ家居酒屋 海彩", category: "居酒屋・バー" },{ id: "r010", name: "呑空", category: "居酒屋・バー" },{ id: "r011", name: "漁鮮亭うらの", category: "居酒屋・バー" },{ id: "r012", name: "旬彩きのした", category: "和食・食堂" },{ id: "r013", name: "鉄板大衆酒BAR はなび", category: "居酒屋・バー" },{ id: "r014", name: "中華そばげんじ", category: "ラーメン・中華" },{ id: "r015", name: "鯛そば真源", category: "ラーメン・中華" },{ id: "r016", name: "中華そば いちい", category: "ラーメン・中華" },{ id: "r017", name: "ラーメン豚鶏歓", category: "ラーメン・中華" },{ id: "r018", name: "自家製麺 らーめん てしお", category: "ラーメン・中華" },{ id: "r019", name: "番やのすし 小杉店", category: "寿司" },{ id: "r020", name: "歩寿司分家多聞", category: "寿司" },{ id: "r021", name: "繁寿し", category: "寿司" },{ id: "r022", name: "新湊寿し処 浪花鮨 本店", category: "寿司" },{ id: "r023", name: "清寿し", category: "寿司" },{ id: "r024", name: "Café de Repos", category: "カフェ・パン" },{ id: "r025", name: "一条珈琲", category: "カフェ・パン" },{ id: "r026", name: "番屋カフェ", category: "カフェ・パン" },{ id: "r027", name: "CAFE BRIO", category: "カフェ・パン" },{ id: "r028", name: "ルチャナ", category: "カフェ・パン" },{ id: "r029", name: "食堂 かわひがし", category: "和食・食堂" },{ id: "r030", name: "中山食堂", category: "和食・食堂" },{ id: "r031", name: "メシ屋 ほのぼの", category: "和食・食堂" },{ id: "r032", name: "きっときと亭", category: "和食・食堂" },{ id: "r033", name: "食堂510", category: "和食・食堂" },{ id: "r034", name: "牛角 小杉店", category: "焼肉" },{ id: "r035", name: "ミートハウス 山ちゃん", category: "焼肉" },{ id: "r036", name: "鉄木真 小杉店", category: "焼肉" },{ id: "r037", name: "ホルモン 光 小杉店", category: "焼肉" },{ id: "r038", name: "慶尚苑", category: "焼肉" },{ id: "r039", name: "うどん万福", category: "うどん・そば" },{ id: "r040", name: "百万石うどん 大門店", category: "うどん・そば" },{ id: "r041", name: "ゆで太郎 8号小杉白石店", category: "うどん・そば" },{ id: "r042", name: "ゆで太郎 射水布目沢店", category: "うどん・そば" },{ id: "r043", name: "萬盛庵", category: "うどん・そば" },{ id: "r044", name: "蕎麦 さ和", category: "うどん・そば" },{ id: "r045", name: "煮込亭", category: "うどん・そば" },{ id: "r046", name: "パンのさわや", category: "カフェ・パン" },{ id: "r047", name: "Boulangerie IMAMURA", category: "カフェ・パン" },{ id: "r048", name: "みなとや製パン", category: "カフェ・パン" },{ id: "r049", name: "手づくりパン B-CUBE", category: "カフェ・パン" },{ id: "r050", name: "パンドアール", category: "カフェ・パン" },{ id: "r051", name: "ショットバー リクオル", category: "居酒屋・バー" },{ id: "r052", name: "缶詰工場", category: "居酒屋・バー" },{ id: "r053", name: "BAR みやた", category: "居酒屋・バー" },{ id: "r054", name: "ザ バー ライズ", category: "居酒屋・バー" },{ id: "r055", name: "PUB POTSTILL", category: "居酒屋・バー" },{ id: "r056", name: "李白", category: "ラーメン・中華" },{ id: "r057", name: "８番らーめん 小杉店", category: "ラーメン・中華" },{ id: "r058", name: "麺屋ひろまる", category: "ラーメン・中華" },{ id: "r059", name: "大阪屋ショップ アプリオ店", category: "その他" },{ id: "r060", name: "uchikawa六角堂", category: "カフェ・パン" },{ id: "r061", name: "太閤山カントリークラブレストラン", category: "洋食・レストラン" },{ id: "r062", name: "きっときと市場", category: "その他" },{ id: "r063", name: "海王", category: "和食・食堂" },{ id: "r064", name: "割烹かわぐち", category: "和食・食堂" },{ id: "r065", name: "スパロー", category: "うどん・そば" },{ id: "r066", name: "すし食いねぇ！ 小杉店", category: "寿司" },{ id: "r067", name: "はま寿司 射水三ケ店", category: "寿司" },{ id: "r068", name: "かっぱ寿司 射水店", category: "寿司" },{ id: "r069", name: "カレーのチャンピオン 小杉店", category: "その他" },{ id: "r070", name: "CoCo壱番屋 射水小杉店", category: "その他" },{ id: "r071", name: "スターバックスコーヒー 富山小杉店", category: "カフェ・パン" },{ id: "r072", name: "マクドナルド 8号線小杉店", category: "その他" },{ id: "r073", name: "モスバーガー 射水小杉店", category: "その他" },{ id: "r074", name: "ガスト 小杉店", category: "洋食・レストラン" },{ id: "r075", name: "ミスタードーナツ パスコ・小杉ショップ", category: "カフェ・パン" }
     ];
 
-    let currentUser = null;
-    let isAdmin = false;
+    let currentUser = sessionStorage.getItem('currentUser');
+    let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
-    // --- 要素取得 ---
-    const restaurantListEl = document.getElementById('restaurant-list');
-    const modal = document.getElementById('main-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalBody = document.getElementById('modal-body');
-    const userDisplay = document.getElementById('user-display');
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const historyBtn = document.getElementById('history-btn');
-    const adminTrigger = document.getElementById('admin-trigger');
-    const pageBody = document.getElementById('page-body');
+    const elements = {
+        restaurantList: document.getElementById('restaurant-list'),
+        modal: document.getElementById('main-modal'),
+        modalTitle: document.getElementById('modal-title'),
+        modalBody: document.getElementById('modal-body'),
+        userDisplay: document.getElementById('user-display'),
+        loginBtn: document.getElementById('login-btn'),
+        logoutBtn: document.getElementById('logout-btn'),
+        historyBtn: document.getElementById('history-btn'),
+        adminTrigger: document.getElementById('admin-trigger'),
+        pageBody: document.getElementById('page-body'),
+        searchInput: document.getElementById('search-input'),
+        categoryFilters: document.getElementById('category-filters'),
+        resultsCounter: document.getElementById('results-counter')
+    };
 
-    // --- イベントリスナー ---
-    document.addEventListener('DOMContentLoaded', updateUI);
-    document.querySelector('.close-btn').onclick = () => modal.style.display = 'none';
-    loginBtn.onclick = login;
-    logoutBtn.onclick = logout;
-    historyBtn.onclick = showHistory;
-    adminTrigger.onclick = enterAdminMode;
+    document.addEventListener('DOMContentLoaded', () => {
+        setupCategoryButtons();
+        updateUI();
+        elements.searchInput.addEventListener('keyup', renderList);
+        document.querySelector('.close-btn').onclick = () => elements.modal.style.display = 'none';
+        elements.loginBtn.onclick = showLoginModal;
+        elements.logoutBtn.onclick = logout;
+        elements.historyBtn.onclick = showHistory;
+        elements.adminTrigger.onclick = enterAdminMode;
+    });
 
-    // --- UI制御 ---
     function updateUI() {
         if (currentUser) {
-            userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
-            loginBtn.style.display = 'none';
-            logoutBtn.style.display = 'inline-block';
-            historyBtn.style.display = 'inline-block';
+            elements.userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
+            elements.loginBtn.style.display = 'none';
+            elements.logoutBtn.style.display = 'inline-block';
+            elements.historyBtn.style.display = 'inline-block';
         } else {
-            userDisplay.textContent = '未ログイン';
-            loginBtn.style.display = 'inline-block';
-            logoutBtn.style.display = 'none';
-            historyBtn.style.display = 'none';
+            elements.userDisplay.textContent = '未ログイン';
+            elements.loginBtn.style.display = 'inline-block';
+            elements.logoutBtn.style.display = 'none';
+            elements.historyBtn.style.display = 'none';
         }
-        pageBody.classList.toggle('admin-mode', isAdmin);
+        elements.pageBody.classList.toggle('admin-mode', isAdmin);
         renderList();
     }
 
-    // --- 機能 ---
-    function login() {
-        const username = prompt("ユーザー名を入力してください:");
-        if (username) {
-            currentUser = username.trim();
-            updateUI();
-        }
+    function renderList() {
+        const activeCategory = document.querySelector('.category-btn.active')?.textContent || 'すべて';
+        const searchText = elements.searchInput.value.toUpperCase();
+        const filtered = allRestaurants.filter(r => 
+            (activeCategory === 'すべて' || r.category === activeCategory) && 
+            (r.name.toUpperCase().includes(searchText))
+        );
+        elements.resultsCounter.textContent = `表示件数: ${filtered.length}件`;
+        elements.restaurantList.innerHTML = '';
+        filtered.forEach(r => {
+            const li = document.createElement('li');
+            li.className = 'restaurant-item';
+            li.innerHTML = `
+                <div class="restaurant-info"><span class="restaurant-name">${r.name}</span></div>
+                <div class="restaurant-buttons">
+                    <button class="reviews-btn" onclick="showReviews('${r.id}', '${r.name}')">口コミ</button>
+                    <button class="details-btn" onclick="showDetails('${r.id}', '${r.name}')">詳細</button>
+                </div>`;
+            elements.restaurantList.appendChild(li);
+        });
+    }
+
+    function setupCategoryButtons() {
+        const categories = ['すべて', ...new Set(allRestaurants.map(r => r.category))];
+        elements.categoryFilters.innerHTML = '';
+        categories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'category-btn';
+            btn.textContent = cat;
+            if (cat === 'すべて') btn.classList.add('active');
+            btn.addEventListener('click', () => {
+                elements.categoryFilters.querySelector('.active')?.classList.remove('active');
+                btn.classList.add('active');
+                renderList();
+            });
+            elements.categoryFilters.appendChild(btn);
+        });
+    }
+    
+    // --- モーダル & API通信 ---
+    function showLoginModal() {
+        elements.modalTitle.textContent = 'ログインまたは新規登録';
+        elements.modalBody.innerHTML = `
+            <form id="login-form">
+                <div class="form-group"><label for="username">ユーザー名:</label><input type="text" id="username" required></div>
+                <div class="form-group"><label for="password">パスワード:</label><input type="password" id="password" required></div>
+                <button type="submit" class="main-btn" style="width:100%; margin-top:10px;">ログイン</button>
+                <button type="button" id="register-btn" class="main-btn" style="width:100%; margin-top:10px; background: #6c757d; border-color: #6c757d; color:white;">新規登録</button>
+            </form>`;
+        elements.modal.style.display = 'block';
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const username = e.target.username.value;
+            const password = e.target.password.value;
+            const res = await fetch('/api/login', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            if (res.ok) {
+                currentUser = username;
+                sessionStorage.setItem('currentUser', username);
+                updateUI();
+                elements.modal.style.display = 'none';
+            } else { alert((await res.json()).message); }
+        };
+        document.getElementById('register-btn').onclick = async () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const res = await fetch('/api/register', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            alert((await res.json()).message);
+        };
     }
 
     function logout() {
-        currentUser = null;
-        isAdmin = false;
+        currentUser = null; isAdmin = false;
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('isAdmin');
         updateUI();
     }
-    
+
     function enterAdminMode() {
         const pass = prompt("管理者パスワードを入力してください:");
-        if (pass === "admin123") { // ★実際のアプリでは絶対に使わない簡易パスワード
+        if (pass === "prodesu") { // ★簡易パスワード
             isAdmin = true;
-            if (!currentUser) login(); else updateUI();
+            sessionStorage.setItem('isAdmin', 'true');
+            if (!currentUser) showLoginModal(); else updateUI();
             alert("管理者モードになりました。");
-        } else {
-            alert("パスワードが違います。");
-        }
+        } else { alert("パスワードが違います。"); }
     }
 
     async function showDetails(id, name) {
         if (currentUser) {
             await fetch(`/api/history/${currentUser}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ restaurantId: id, restaurantName: name })
             });
         }
@@ -126,44 +218,35 @@
     async function showHistory() {
         const res = await fetch(`/api/history/${currentUser}`);
         const history = await res.json();
-        modalTitle.textContent = `${currentUser}の閲覧履歴`;
+        elements.modalTitle.textContent = `${currentUser}の閲覧履歴`;
         let body = '<ul>';
-        if (history.length > 0) {
-            history.forEach(item => {
-                body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`;
-            });
-        } else {
-            body += '<li>閲覧履歴はありません。</li>';
-        }
-        body += '</ul>';
-        if (isAdmin) {
-            body += `<button class="delete-btn" style="display:inline-block" onclick="clearHistory('${currentUser}')">このユーザーの履歴を全て削除</button>`;
-        }
-        modalBody.innerHTML = body;
-        modal.style.display = 'block';
+        history.forEach(item => { body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`; });
+        body += `</ul>${isAdmin ? `<button class="delete-btn" style="display:inline-block" onclick="clearHistory('${currentUser}')">このユーザーの履歴を全て削除</button>` : ''}`;
+        elements.modalBody.innerHTML = body;
+        elements.modal.style.display = 'block';
     }
-    
+
     async function clearHistory(username) {
         if (confirm(`${username}の履歴を全て削除します。よろしいですか？`)) {
             await fetch(`/api/history/${username}`, { method: 'DELETE' });
-            modal.style.display = 'none';
+            elements.modal.style.display = 'none';
         }
     }
 
     async function showReviews(id, name) {
         const res = await fetch(`/api/reviews/${id}`);
         const reviews = await res.json();
-        modalTitle.textContent = `${name} の口コミ`;
+        elements.modalTitle.textContent = `${name} の口コミ`;
         let body = '<div>';
         reviews.forEach(r => {
             body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>${new Date(r.timestamp).toLocaleString()}</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`;
         });
         body += `</div><form onsubmit="submitReview(event, '${id}', '${name}')">
-            <textarea placeholder="${currentUser ? '口コミを投稿する...' : 'ログインしてください'}"></textarea>
+            <textarea placeholder="${currentUser ? '口コミを投稿する...' : 'ログインしてください'}" ${!currentUser ? 'disabled' : ''}></textarea>
             <button type="submit" ${!currentUser ? 'disabled' : ''}>投稿</button>
             </form>`;
-        modalBody.innerHTML = body;
-        modal.style.display = 'block';
+        elements.modalBody.innerHTML = body;
+        elements.modal.style.display = 'block';
     }
 
     async function submitReview(event, id, name) {
@@ -171,35 +254,20 @@
         const text = event.target.querySelector('textarea').value;
         if (!text) return;
         await fetch(`/api/reviews/${id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: currentUser, text: text })
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username: currentUser, text })
         });
         showReviews(id, name);
     }
-    
+
     async function deleteReview(id, name, timestamp) {
         if (confirm("この口コミを削除しますか？")) {
             await fetch(`/api/reviews/${id}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ timestamp: timestamp })
+                method: 'DELETE', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ timestamp })
             });
             showReviews(id, name);
         }
-    }
-
-    function renderList() {
-        restaurantListEl.innerHTML = '';
-        allRestaurants.forEach(r => {
-            const li = document.createElement('li');
-            li.className = 'restaurant-item';
-            li.innerHTML = `<span>${r.name}</span><div>
-                <button onclick="showReviews('${r.id}', '${r.name}')">口コミ</button>
-                <button onclick="showDetails('${r.id}', '${r.name}')">詳細</button>
-                </div>`;
-            restaurantListEl.appendChild(li);
-        });
     }
 </script>
 </body>
