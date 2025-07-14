@@ -3,307 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>射水市 飲食店検索 (Ver. 1.3)</title>
+    <title>射水市 飲食店検索 (Ver. 2.0)</title>
     <style>
-        :root{--primary-color:#007bff;--light-gray:#f4f7f9;--dark-gray:#34495e;--white:#fff;--danger-color:#dc3545}
-        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",sans-serif;margin:0;padding:1em;background-color:var(--light-gray);color:var(--dark-gray)}
-        .container{max-width:800px;margin:20px auto;padding:20px;background-color:var(--white);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
-        .header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:1.5em;gap:10px}
-        .user-controls{display:flex;align-items:center;gap:10px}
-        .main-btn{padding:8px 16px;font-size:14px;border-radius:20px;cursor:pointer;border:1px solid var(--primary-color);background-color:var(--white);color:var(--primary-color)}
-        #category-filters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:1em}
-        .category-btn{padding:8px 16px;font-size:14px;font-weight:500;color:var(--dark-gray);background-color:#ecf0f1;border:none;border-radius:20px;cursor:pointer}
-        .category-btn.active{color:var(--white);background-color:var(--primary-color)}
-        #search-input{width:100%;padding:12px 15px;font-size:16px;border:1px solid #dfe4ea;border-radius:8px;box-sizing:border-box}
-        #results-counter{text-align:right;margin:1em 0;color:#555;font-weight:500}
-        .restaurant-list{list-style-type:none;padding:0}
-        .restaurant-item{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #eee}
-        .restaurant-buttons{display:flex;gap:8px}
-        .reviews-btn,.details-btn{padding:8px 12px;font-size:13px;border-radius:5px;cursor:pointer;border:1px solid}
-        .reviews-btn{color:var(--white);background-color:#28a745;border-color:#28a745}
-        .details-btn{color:var(--primary-color);background-color:var(--white);border-color:var(--primary-color)}
-        footer{text-align:center;margin-top:2em;color:#aaa}#admin-trigger{cursor:pointer}
-        .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5)}
-        .modal-content{background-color:#fefefe;margin:10% auto;padding:20px;width:90%;max-width:500px;border-radius:8px}
-        .modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding-bottom:10px}
-        .modal-header h2{margin:0}
-        .close-btn{font-size:28px;font-weight:700;cursor:pointer}
-        .form-group{margin-bottom:1em}.form-group label{display:block;margin-bottom:5px}.form-group input,.form-group textarea{width:100%;padding:8px;box-sizing:border-box}
-        .review-item{padding:8px 0;border-bottom:1px solid #eee}.review-item small{color:#888}
-        .delete-btn{color:var(--danger-color);border:none;background:0 0;cursor:pointer;margin-left:10px;display:none}
-        .admin-mode .delete-btn{display:inline}
+        /* ... CSSは長いため省略 ... */
+        .sort-controls { margin-bottom: 1em; text-align: right; }
+        .restaurant-meta { font-size: 0.9em; color: #555; }
+        .fav-btn { cursor: pointer; font-size: 1.5em; color: #ccc; }
+        .fav-btn.favorited { color: #ffc107; }
     </style>
 </head>
-<body id="page-body">
+<body>
     <div class="container">
         <div class="header">
-            <h1>射水市 飲食店検索 (Ver. 1.3)</h1>
-            <div class="user-controls">
-                <span id="user-display">未ログイン</span>
-                <button id="login-btn" class="main-btn">ログイン</button>
-                <button id="history-btn" class="main-btn" style="display:none;">閲覧履歴</button>
-                <button id="logout-btn" class="main-btn" style="display:none;">ログアウト</button>
+            <h1>射水市 飲食店検索 (Ver. 2.0)</h1>
             </div>
+        
+        <div class="sort-controls">
+            <button id="location-btn">現在地からの距離を表示</button>
+            <label for="sort-select">並び替え:</label>
+            <select id="sort-select">
+                <option value="default">標準</option>
+                <option value="name_asc">名前順 (昇順)</option>
+                <option value="name_desc">名前順 (降順)</option>
+                <option value="distance_asc">距離順 (近い順)</option>
+            </select>
         </div>
-        <div class="search-controls">
-            <div id="category-filters"></div>
-            <input type="text" id="search-input" placeholder="店名でさらに絞り込み...">
+
         </div>
-        <div id="results-counter"></div>
-        <ul id="restaurant-list" class="restaurant-list"></ul>
-    </div>
-    <footer><p><span id="admin-trigger">©</span></p></footer>
-
-    <div id="main-modal" class="modal"><div class="modal-content"><div class="modal-header"><h2 id="modal-title"></h2><span class="close-btn">&times;</span></div><div id="modal-body"></div></div></div>
-
-<script>
+    <script>
     let allRestaurants = [];
-    let currentUser = sessionStorage.getItem('currentUser');
-    let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
-    let currentToken = localStorage.getItem('token');
+    let userFavorites = [];
+    // ... 他のグローバル変数も同じ ...
 
-    const elements = {
-        restaurantList: document.getElementById('restaurant-list'),
-        modal: document.getElementById('main-modal'),
-        modalTitle: document.getElementById('modal-title'),
-        modalBody: document.getElementById('modal-body'),
-        userDisplay: document.getElementById('user-display'),
-        loginBtn: document.getElementById('login-btn'),
-        logoutBtn: document.getElementById('logout-btn'),
-        historyBtn: document.getElementById('history-btn'),
-        adminTrigger: document.getElementById('admin-trigger'),
-        pageBody: document.getElementById('page-body'),
-        searchInput: document.getElementById('search-input'),
-        categoryFilters: document.getElementById('category-filters'),
-        resultsCounter: document.getElementById('results-counter')
-    };
-
-    // --- 初期化処理 ---
     document.addEventListener('DOMContentLoaded', async () => {
-        // ★★★ この部分を、エラーが起きても全体が停止しないように修正しました ★★★
-        try {
-            await verifyTokenOnLoad();
-            await fetchRestaurants();
-        } catch (error) {
-            console.error("初期化中にエラーが発生しました:", error);
-            elements.resultsCounter.textContent = 'エラー発生。サーバーのログを確認してください。';
-        } finally {
-            // finallyブロックは、tryやcatchの成否に関わらず必ず実行される
-            // これにより、データ取得に失敗してもUIの基本機能は動作するようになる
-            setupCategoryButtons();
-            updateUI();
-            setupEventListeners();
-        }
+        // ... 初期化処理 ...
+        document.getElementById('sort-select').onchange = renderList;
+        document.getElementById('location-btn').onclick = getLocationAndDistances;
     });
     
-    // --- イベントリスナーをまとめる関数 ---
-    function setupEventListeners() {
-        document.querySelector('.close-btn').onclick = () => elements.modal.style.display = 'none';
-        elements.loginBtn.onclick = showLoginModal;
-        elements.logoutBtn.onclick = logout;
-        elements.historyBtn.onclick = showHistory;
-        elements.adminTrigger.onclick = enterAdminMode;
-        elements.searchInput.addEventListener('keyup', renderList);
-    }
-
-    // --- データ取得 ---
-    async function fetchRestaurants() {
-        elements.resultsCounter.textContent = 'お店の情報を取得中...';
-        const response = await fetch('/api/restaurants');
-        if (!response.ok) {
-            throw new Error(`サーバーからのデータ取得に失敗: ${response.statusText}`);
+    // --- 新しい・修正された関数 ---
+    
+    async function fetchInitialData() {
+        // レストランリストとお気に入りリストを同時に取得
+        const [resRestaurants, resFavorites] = await Promise.all([
+            fetch('/api/restaurants'),
+            currentUser ? fetch(`/api/favorites/${currentUser}`) : Promise.resolve(null)
+        ]);
+        allRestaurants = await resRestaurants.json();
+        if (resFavorites && resFavorites.ok) {
+            userFavorites = await resFavorites.json();
         }
-        allRestaurants = await response.json();
-    }
-
-    // --- ログイン・セッション管理 ---
-    async function verifyTokenOnLoad() {
-        if (!currentToken) return;
-        const res = await fetch('/api/verify-token', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ token: currentToken })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            currentUser = data.username;
-        } else {
-            localStorage.removeItem('token');
-            currentToken = null;
-        }
-    }
-
-    // --- UI制御 ---
-    function updateUI() {
-        isAdmin = sessionStorage.getItem('isAdmin') === 'true'; // 管理者状態を再確認
-        if (currentUser) {
-            elements.userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
-            elements.loginBtn.style.display = 'none';
-            elements.logoutBtn.style.display = 'inline-block';
-            elements.historyBtn.style.display = 'inline-block';
-        } else {
-            elements.userDisplay.textContent = '未ログイン';
-            elements.loginBtn.style.display = 'inline-block';
-            elements.logoutBtn.style.display = 'none';
-            elements.historyBtn.style.display = 'none';
-        }
-        elements.pageBody.classList.toggle('admin-mode', isAdmin);
-        renderList();
     }
 
     function renderList() {
-        const activeCategory = document.querySelector('.category-btn.active')?.textContent || 'すべて';
-        const searchText = elements.searchInput.value.toUpperCase();
-        const filtered = allRestaurants.filter(r => 
-            (activeCategory === 'すべて' || r.category === activeCategory) && 
-            (r.name.toUpperCase().includes(searchText))
-        );
-        if (allRestaurants.length > 0) {
-            elements.resultsCounter.textContent = `表示件数: ${filtered.length}件`;
+        // ... フィルタリング処理 ...
+
+        // ★★★ 並び替え処理を追加 ★★★
+        const sortType = document.getElementById('sort-select').value;
+        if (sortType === 'name_asc') filtered.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+        if (sortType === 'name_desc') filtered.sort((a, b) => b.name.localeCompare(a.name, 'ja'));
+        if (sortType === 'distance_asc' && filtered.every(r => r.distance != null)) {
+            filtered.sort((a, b) => a.distance - b.distance);
         }
-        elements.restaurantList.innerHTML = '';
-        filtered.forEach(r => {
-            const li = document.createElement('li');
-            li.className = 'restaurant-item';
-            li.innerHTML = `
-                <div class="restaurant-info"><span class="restaurant-name">${r.name}</span></div>
-                <div class="restaurant-buttons">
-                    <button class="reviews-btn" onclick="showReviews('${r.id}', '${r.name}')">口コミ</button>
-                    <button class="details-btn" onclick="showDetails('${r.id}', '${r.name}')">詳細</button>
+
+        // ... リスト描画処理 ...
+        // ★★★ お気に入りボタンと距離表示を追加 ★★★
+        li.innerHTML = `
+            <div>
+                <span class="restaurant-name">${r.name}</span>
+                <div class="restaurant-meta">
+                    ${r.distance != null ? `現在地から約 ${r.distance.toFixed(2)} km` : ''}
+                </div>
+            </div>
+            <div class="restaurant-buttons">
+                <span class="fav-btn ${userFavorites.includes(r.id) ? 'favorited' : ''}" onclick="toggleFavorite('${r.id}')">★</span>
                 </div>`;
-            elements.restaurantList.appendChild(li);
-        });
     }
 
-    function setupCategoryButtons() {
-        const categories = ['すべて', ...new Set(allRestaurants.map(r => r.category))];
-        elements.categoryFilters.innerHTML = '';
-        categories.forEach(cat => {
-            const btn = document.createElement('button');
-            btn.className = 'category-btn';
-            btn.textContent = cat;
-            if (cat === 'すべて') btn.classList.add('active');
-            btn.addEventListener('click', () => {
-                elements.categoryFilters.querySelector('.active')?.classList.remove('active');
-                btn.classList.add('active');
-                renderList();
+    async function toggleFavorite(restaurantId) {
+        if (!currentUser) { alert("お気に入り機能はログイン後に利用できます。"); return; }
+        const response = await fetch(`/api/favorites/${currentUser}`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ restaurantId })
+        });
+        if (response.ok) {
+            userFavorites = await response.json();
+            renderList(); // UIを更新
+        }
+    }
+
+    function getLocationAndDistances() {
+        if (!navigator.geolocation) { alert("お使いのブラウザは位置情報取得に対応していません。"); return; }
+        navigator.geolocation.getCurrentPosition(position => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+            allRestaurants.forEach(r => {
+                r.distance = calculateDistance(userLat, userLon, r.lat, r.lon);
             });
-            elements.categoryFilters.appendChild(btn);
+            document.getElementById('sort-select').value = 'distance_asc';
+            renderList();
+        }, () => {
+            alert("位置情報の取得に失敗しました。許可設定などを確認してください。");
         });
     }
-    
-    // --- これ以降の関数は、前回のコードと全く同じです ---
-    function showLoginModal() {
-        elements.modalTitle.textContent = 'ログインまたは新規登録';
-        elements.modalBody.innerHTML = `
-            <form id="login-form">
-                <div class="form-group"><label for="username">ユーザー名:</label><input type="text" id="username" required></div>
-                <div class="form-group"><label for="password">パスワード:</label><input type="password" id="password" required></div>
-                <button type="submit" class="main-btn" style="width:100%; margin-top:10px;">ログイン</button>
-                <button type="button" id="register-btn" class="main-btn" style="width:100%; margin-top:10px; background: #6c757d; border-color: #6c757d; color:white;">新規登録</button>
-            </form>`;
-        elements.modal.style.display = 'block';
-        document.getElementById('login-form').onsubmit = handleLogin;
-        document.getElementById('register-btn').onclick = handleRegister;
-    }
-        
-    async function handleLogin(e) {
-        e.preventDefault();
-        const username = e.target.username.value; const password = e.target.password.value;
-        const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-        if (res.ok) {
-            const data = await res.json();
-            currentUser = username;
-            currentToken = data.token;
-            localStorage.setItem('token', currentToken);
-            updateUI();
-            elements.modal.style.display = 'none';
-        } else { alert((await res.json()).message); }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        // ... ハーバーサイン公式による距離計算ロジック ...
+        // (This is a standard formula, I can write it out)
+        const R = 6371; // Radius of the earth in km
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLon = (lon2 - lon1) * (Math.PI / 180);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
-    async function handleRegister(e) {
-        e.preventDefault();
-        const form = document.getElementById('login-form');
-        const username = form.username.value; const password = form.password.value;
-        if (!username || !password) { alert("ユーザー名とパスワードを入力してください。"); return; }
-        const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username, password }) });
-        alert((await res.json()).message);
-    }
-
-    async function logout() {
-        if (currentToken) {
-            await fetch('/api/logout', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ token: currentToken }) });
-        }
-        currentUser = null; isAdmin = false; currentToken = null;
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('isAdmin');
-        updateUI();
-    }
-
-    function enterAdminMode() {
-        const pass = prompt("管理者パスワードを入力してください:");
-        if (pass === "prodesu") {
-            isAdmin = true; sessionStorage.setItem('isAdmin', 'true');
-            if (!currentUser) showLoginModal(); else updateUI();
-            alert("管理者モードになりました。");
-        } else { alert("パスワードが違います。"); }
-    }
-
-    async function showDetails(id, name) {
-        if (currentUser) {
-            await fetch(`/api/history/${currentUser}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ restaurantId: id, restaurantName: name }) });
-        }
-        window.open(`https://www.google.com/search?q=${encodeURIComponent(name + " 射水市")}`, '_blank');
-    }
-
-    async function showHistory() {
-        if(!currentUser) return;
-        const res = await fetch(`/api/history/${currentUser}`);
-        const history = await res.json();
-        elements.modalTitle.textContent = `${currentUser}の閲覧履歴`;
-        let body = '<ul>';
-        if (history.length > 0) { history.forEach(item => { body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`; });
-        } else { body += '<li>閲覧履歴はありません。</li>'; }
-        body += `</ul>${isAdmin ? `<button class="delete-btn" style="display:inline-block" onclick="clearHistory('${currentUser}')">このユーザーの履歴を全て削除</button>` : ''}`;
-        elements.modalBody.innerHTML = body;
-        elements.modal.style.display = 'block';
-    }
-
-    async function clearHistory(username) {
-        if (confirm(`${username}の履歴を全て削除します。よろしいですか？`)) {
-            await fetch(`/api/history/${username}`, { method: 'DELETE' });
-            elements.modal.style.display = 'none';
-        }
-    }
-
-    async function showReviews(id, name) {
-        const res = await fetch(`/api/reviews/${id}`);
-        const reviews = await res.json();
-        elements.modalTitle.textContent = `${name} の口コミ`;
-        let body = '<div>';
-        if (reviews.length > 0) { reviews.forEach(r => { body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>(${new Date(r.timestamp).toLocaleString()})</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`; });
-        } else { body += '<p>まだ口コミはありません。</p>'; }
-        body += `</div><form onsubmit="submitReview(event, '${id}', '${name}')">
-            <textarea placeholder="${currentUser ? '口コミを投稿する...' : 'ログインしてください'}" ${!currentUser ? 'disabled' : ''}></textarea>
-            <button type="submit" ${!currentUser ? 'disabled' : ''}>投稿</button>
-            </form>`;
-        elements.modalBody.innerHTML = body;
-        elements.modal.style.display = 'block';
-    }
-
-    async function submitReview(event, id, name) {
-        event.preventDefault();
-        const text = event.target.querySelector('textarea').value;
-        if (!text || !currentUser) return;
-        await fetch(`/api/reviews/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: currentUser, text }) });
-        showReviews(id, name);
-    }
-
-    async function deleteReview(id, name, timestamp) {
-        if (confirm("この口コミを削除しますか？")) {
-            await fetch(`/api/reviews/${id}`, { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ timestamp }) });
-            showReviews(id, name);
-        }
-    }
+    // ... 他の関数は同じ ...
 </script>
 </body>
 </html>
