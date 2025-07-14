@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>射水市 飲食店検索 (Pro版)</title>
+    <title>射水市 飲食店検索 (API連携版)</title>
     <style>
         :root{--primary-color:#007bff;--light-gray:#f4f7f9;--dark-gray:#34495e;--white:#fff;--danger-color:#dc3545}
         body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",sans-serif;margin:0;padding:1em;background-color:var(--light-gray);color:var(--dark-gray)}
@@ -37,7 +37,7 @@
 <body id="page-body">
     <div class="container">
         <div class="header">
-            <h1>射水市 飲食店検索 Pro</h1>
+            <h1>射水市 飲食店検索 (API版)</h1>
             <div class="user-controls">
                 <span id="user-display">未ログイン</span>
                 <button id="login-btn" class="main-btn">ログイン</button>
@@ -60,41 +60,13 @@
     </div></div>
 
 <script>
-    // --- データ ---
-    const allRestaurants = [
-        { id: "r001", name: "きときと食堂", category: "和食・食堂" },{ id: "r002", name: "meso", category: "洋食・レストラン" },{ id: "r003", name: "ユニコネルモンド", category: "洋食・レストラン" },{ id: "r004", name: "げん太", category: "和食・食堂" },{ id: "r005", name: "不二屋", category: "うどん・そば" },{ id: "r006", name: "イルコンパーニョ", category: "洋食・レストラン" },{ id: "r007", name: "リリーベリー", category: "洋食・レストラン" },{ id: "r008", name: "グリルはやし", category: "洋食・レストラン" },{ id: "r009", name: "隠れ家居酒屋 海彩", category: "居酒屋・バー" },{ id: "r010", name: "呑空", category: "居酒屋・バー" },{ id: "r011", name: "漁鮮亭うらの", category: "居酒屋・バー" },{ id: "r012", name: "旬彩きのした", category: "和食・食堂" },{ id: "r013", name: "鉄板大衆酒BAR はなび", category: "居酒屋・バー" },{ id: "r014", name: "中華そばげんじ", category: "ラーメン・中華" },{ id: "r015", name: "鯛そば真源", category: "ラーメン・中華" },{ id: "r016", name: "中華そば いちい", category: "ラーメン・中華" },{ id: "r017", name: "ラーメン豚鶏歓", category: "ラーメン・中華" },{ id: "r018", name: "自家製麺 らーめん てしお", category: "ラーメン・中華" },{ id: "r019", name: "番やのすし 小杉店", category: "寿司" },{ id: "r020", name: "歩寿司分家多聞", category: "寿司" },{ id: "r021", name: "繁寿し", category: "寿司" },{ id: "r022", name: "新湊寿し処 浪花鮨 本店", category: "寿司" },{ id: "r023", name: "清寿し", category: "寿司" },{ id: "r024", name: "Café de Repos", category: "カフェ・パン" },{ id: "r025", name: "一条珈琲", category: "カフェ・パン" },{ id: "r026", name: "番屋カフェ", category: "カフェ・パン" },{ id: "r027", name: "CAFE BRIO", category: "カフェ・パン" },{ id: "r028", name: "ルチャナ", category: "カフェ・パン" },{ id: "r029", name: "食堂 かわひがし", category: "和食・食堂" },{ id: "r030", name: "中山食堂", category: "和食・食堂" },{ id: "r031", name: "メシ屋 ほのぼの", category: "和食・食堂" },{ id: "r032", name: "きっときと亭", category: "和食・食堂" },{ id: "r033", name: "食堂510", category: "和食・食堂" },{ id: "r034", name: "牛角 小杉店", category: "焼肉" },{ id: "r035", name: "ミートハウス 山ちゃん", category: "焼肉" },{ id: "r036", name: "鉄木真 小杉店", category: "焼肉" },{ id: "r037", name: "ホルモン 光 小杉店", category: "焼肉" },{ id: "r038", name: "慶尚苑", category: "焼肉" },{ id: "r039", name: "うどん万福", category: "うどん・そば" },{ id: "r040", name: "百万石うどん 大門店", category: "うどん・そば" },{ id: "r041", name: "ゆで太郎 8号小杉白石店", category: "うどん・そば" },{ id: "r042", name: "ゆで太郎 射水布目沢店", category: "うどん・そば" },{ id: "r043", name: "萬盛庵", category: "うどん・そば" },{ id: "r044", name: "蕎麦 さ和", category: "うどん・そば" },{ id: "r045", name: "煮込亭", category: "うどん・そば" },{ id: "r046", name: "パンのさわや", category: "カフェ・パン" },{ id: "r047", name: "Boulangerie IMAMURA", category: "カフェ・パン" },{ id: "r048", name: "みなとや製パン", category: "カフェ・パン" },{ id: "r049", name: "手づくりパン B-CUBE", category: "カフェ・パン" },{ id: "r050", name: "パンドアール", category: "カフェ・パン" },{ id: "r051", "name": "ショットバー リクオル", "category": "居酒屋・バー" },{ id: "r052", name: "缶詰工場", category: "居酒屋・バー" },{ id: "r053", name: "BAR みやた", category: "居酒屋・バー" },{ id: "r054", name: "ザ バー ライズ", category: "居酒屋・バー" },{ id: "r055", name: "PUB POTSTILL", category: "居酒屋・バー" },{ id: "r056", name: "李白", category: "ラーメン・中華" },{ id: "r057", name: "８番らーめん 小杉店", category: "ラーメン・中華" },{ id: "r058", name: "麺屋ひろまる", category: "ラーメン・中華" },{ id: "r059", name: "大阪屋ショップ アプリオ店", category: "その他" },{ id: "r060", name: "uchikawa六角堂", category: "カフェ・パン" },{ id: "r061", name: "太閤山カントリークラブレストラン", category: "洋食・レストラン" },{ id: "r062", name: "きっときと市場", category: "その他" },{ id: "r063", name: "海王", category: "和食・食堂" },{ id: "r064", name: "割烹かわぐち", category: "和食・食堂" },{ id: "r065", name: "スパロー", category: "うどん・そば" },{ id: "r066", name: "すし食いねぇ！ 小杉店", category: "寿司" },{ id: "r067", name: "はま寿司 射水三ケ店", category: "寿司" },{ id: "r068", name: "かっぱ寿司 射水店", category: "寿司" },{ id: "r069", name: "カレーのチャンピオン 小杉店", category: "その他" },{ id: "r070", name: "CoCo壱番屋 射水小杉店", category: "その他" },{ id: "r071", name: "スターバックスコーヒー 富山小杉店", category: "カフェ・パン" },{ id: "r072", name: "マクドナルド 8号線小杉店", category: "その他" },{ id: "r073", name: "モスバーガー 射水小杉店", category: "その他" },{ id: "r074", name: "ガスト 小杉店", category: "洋食・レストラン" },{ id: "r075", name: "ミスタードーナツ パスコ・小杉ショップ", category: "カフェ・パン" },
-        // ★★★ここからが新しく追加したお店です★★★
-        { id: "r076", name: "中華そば秀光", category: "ラーメン・中華" },
-        { id: "r077", name: "貴婦人館", category: "カフェ・パン" },
-        { id: "r078", name: "レストランSazan", category: "洋食・レストラン" },
-        { id: "r079", name: "魚民 小杉南口駅前店", category: "居酒屋・バー" },
-        { id: "r080", name: "いちおしや伝五郎 小杉店", category: "居酒屋・バー" },
-        { id: "r081", name: "達ちゃん", category: "居酒屋・バー" },
-        { id: "r082", name: "ホット・スプーン", category: "その他" },
-        { id: "r083", name: "さぶろうべい 小杉店", category: "和食・食堂" },
-        { id: "r084", name: "ドルチェヴィータ", category: "洋食・レストラン" },
-        { id: "r085", name: "広島風お好み焼 富乃家", category: "その他" },
-        { id: "r086", name: "mokkado", category: "カフェ・パン" },
-        { id: "r087", name: "たかざわ珈琲店", category: "カフェ・パン" },
-        { id: "r088", "name": "元町珈琲富山射水の離れ", "category": "カフェ・パン" },
-        { id: "r089", name: "JUNOCAFEアルプラザ小杉店", category: "カフェ・パン" },
-        { id: "r090", name: "琥珀物語 第二章", category: "カフェ・パン" },
-        { id: "r091", name: "ファミリー食堂さかなやさん", category: "和食・食堂" },
-        { id: "r092", name: "レストラン アルテミス", category: "洋食・レストラン" },
-        { id: "r093", name: "食処 海み屋", category: "和食・食堂" },
-        { id: "r094", name: "バルツェル ラボ", category: "洋食・レストラン" },
-        { id: "r095", name: "うちカフェ酒場わいまる", category: "居酒屋・バー" },
-        { id: "r096", name: "鮨処・居酒屋 一心", category: "寿司" },
-        { id: "r097", name: "居酒屋がってん", category: "居酒屋・バー" },
-        { id: "r098", name: "花-HANA", category: "居酒屋・バー" },
-        { id: "r099", name: "ビストロブサ", category: "洋食・レストラン" },
-        { id: "r100", name: "食堂・居酒屋 虎と猫", category: "居酒屋・バー" },
-        { id: "r101", name: "パキザフードハウス", category: "その他" }
-    ];
-
+    // ★★★ この部分が書き換わっています ★★★
+    let allRestaurants = []; // 最初は空の配列として定義
+    
     let currentUser = sessionStorage.getItem('currentUser');
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
+    // --- 要素取得 ---
     const elements = {
         restaurantList: document.getElementById('restaurant-list'),
         modal: document.getElementById('main-modal'),
@@ -111,9 +83,24 @@
         resultsCounter: document.getElementById('results-counter')
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
+    // --- 初期化 ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        // サーバーに問い合わせて、全レストランのリストを取得する
+        try {
+            elements.resultsCounter.textContent = 'お店の情報を取得中...';
+            const response = await fetch('/api/restaurants');
+            if (!response.ok) throw new Error('サーバーからのデータ取得に失敗しました。');
+            allRestaurants = await response.json();
+        } catch (error) {
+            console.error(error);
+            elements.resultsCounter.textContent = '情報取得エラー';
+        }
+        
+        // 取得したデータでページを初期化
         setupCategoryButtons();
         updateUI();
+
+        // 残りのイベントリスナーを設定
         elements.searchInput.addEventListener('keyup', renderList);
         document.querySelector('.close-btn').onclick = () => elements.modal.style.display = 'none';
         elements.loginBtn.onclick = showLoginModal;
@@ -122,6 +109,7 @@
         elements.adminTrigger.onclick = enterAdminMode;
     });
 
+    // ★★★ これ以降の関数は、前回のコードと全く同じです ★★★
     function updateUI() {
         if (currentUser) {
             elements.userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
@@ -205,6 +193,7 @@
         document.getElementById('register-btn').onclick = async () => {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            if (!username || !password) { alert("ユーザー名とパスワードを入力してください。"); return; }
             const res = await fetch('/api/register', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ username, password })
@@ -241,11 +230,16 @@
     }
 
     async function showHistory() {
+        if(!currentUser) return;
         const res = await fetch(`/api/history/${currentUser}`);
         const history = await res.json();
         elements.modalTitle.textContent = `${currentUser}の閲覧履歴`;
         let body = '<ul>';
-        history.forEach(item => { body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`; });
+        if (history.length > 0) {
+            history.forEach(item => { body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`; });
+        } else {
+            body += '<li>閲覧履歴はありません。</li>';
+        }
         body += `</ul>${isAdmin ? `<button class="delete-btn" style="display:inline-block" onclick="clearHistory('${currentUser}')">このユーザーの履歴を全て削除</button>` : ''}`;
         elements.modalBody.innerHTML = body;
         elements.modal.style.display = 'block';
@@ -263,9 +257,13 @@
         const reviews = await res.json();
         elements.modalTitle.textContent = `${name} の口コミ`;
         let body = '<div>';
-        reviews.forEach(r => {
-            body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>${new Date(r.timestamp).toLocaleString()}</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`;
-        });
+        if (reviews.length > 0) {
+            reviews.forEach(r => {
+                body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>${new Date(r.timestamp).toLocaleString()}</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`;
+            });
+        } else {
+            body += '<p>まだ口コミはありません。</p>';
+        }
         body += `</div><form onsubmit="submitReview(event, '${id}', '${name}')">
             <textarea placeholder="${currentUser ? '口コミを投稿する...' : 'ログインしてください'}" ${!currentUser ? 'disabled' : ''}></textarea>
             <button type="submit" ${!currentUser ? 'disabled' : ''}>投稿</button>
@@ -277,7 +275,7 @@
     async function submitReview(event, id, name) {
         event.preventDefault();
         const text = event.target.querySelector('textarea').value;
-        if (!text) return;
+        if (!text || !currentUser) return;
         await fetch(`/api/reviews/${id}`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ username: currentUser, text })
