@@ -2,241 +2,205 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>射水市 飲食店検索 (サーバー連携版)</title>
+    <title>射水市 飲食店検索 (多機能版)</title>
     <style>
-        :root {
-            --primary-color: #007bff; --light-gray: #f4f7f9; --medium-gray: #dfe4ea;
-            --dark-gray: #34495e; --white: #fff; --danger-color: #dc3545;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif;
-            margin: 0; padding: 1em; background-color: var(--light-gray); color: var(--dark-gray);
-        }
-        .container { max-width: 800px; margin: 20px auto; padding: 20px; background-color: var(--white); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        header h1 { text-align: center; color: var(--dark-gray); margin-bottom: 0.5em; }
-        header p { text-align: center; color: #7f8c8d; margin-top: 0; margin-bottom: 1.5em; }
-        .main-controls { display: flex; justify-content: flex-end; margin-bottom: 1em; }
-        .main-btn { padding: 8px 16px; font-size: 14px; color: var(--primary-color); background-color: var(--white); border: 1px solid var(--primary-color); border-radius: 20px; cursor: pointer; }
-        #category-filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 1em; }
-        .category-btn { padding: 8px 16px; font-size: 14px; font-weight: 500; color: var(--dark-gray); background-color: #ecf0f1; border: 1px solid transparent; border-radius: 20px; cursor: pointer; }
-        .category-btn.active { color: var(--white); background-color: var(--primary-color); }
-        #search-input { width: 100%; padding: 12px 15px; font-size: 16px; border: 1px solid var(--medium-gray); border-radius: 8px; box-sizing: border-box; }
-        #results-counter { text-align: right; margin: 1em 0; color: #555; font-weight: 500; }
-        .restaurant-list { list-style-type: none; padding: 0; }
-        .restaurant-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
-        .restaurant-info { flex-grow: 1; }
-        .restaurant-name { font-weight: 500; font-size: 1.1em; }
-        .restaurant-buttons { display: flex; gap: 8px; }
-        .details-btn, .reviews-btn { padding: 8px 12px; font-size: 13px; border-radius: 5px; cursor: pointer; }
-        .reviews-btn { color: var(--white); background-color: #28a745; border: 1px solid #28a745; }
-        .details-btn { color: var(--primary-color); background-color: var(--white); border: 1px solid var(--primary-color); }
-        footer { text-align: center; margin-top: 2em; color: #aaa; }
+        body{font-family:sans-serif;margin:2em;background-color:#f9f9f9}
+        .container{max-width:800px;margin:auto;background:white;padding:20px;border-radius:8px;box-shadow:0 0 10px #ddd}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1em}
+        .user-controls button{margin-left:10px}
+        .restaurant-item{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #eee}
+        .modal{display:none;position:fixed;z-index:1;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.5)}
+        .modal-content{background-color:#fefefe;margin:10% auto;padding:20px;width:80%;max-width:500px;border-radius:8px}
+        .close-btn{float:right;font-size:28px;font-weight:700;cursor:pointer}
+        .review-item{padding:8px 0;border-bottom:1px solid #eee}.review-item small{color:#888}
+        .delete-btn{color:red;border:none;background:0 0;cursor:pointer;margin-left:10px;display:none}
+        .admin-mode .delete-btn{display:inline}
     </style>
 </head>
-<body>
-
+<body id="page-body">
     <div class="container">
-        <header>
+        <div class="header">
             <h1>射水市 飲食店検索</h1>
-            <p>カテゴリと店名で検索できます</p>
-        </header>
-
-        <div class="search-controls">
-            <div id="category-filters"></div>
-            <input type="text" id="search-input" placeholder="店名で検索...">
+            <div class="user-controls">
+                <span id="user-display">未ログイン</span>
+                <button id="login-btn">ログイン</button>
+                <button id="history-btn" style="display:none;">閲覧履歴</button>
+                <button id="logout-btn" style="display:none;">ログアウト</button>
+            </div>
         </div>
-        
-        <div id="results-counter"></div>
-        <ul class="restaurant-list" id="restaurant-list"></ul>
+        <ul id="restaurant-list" class="restaurant-list"></ul>
     </div>
     
-    <div id="main-modal" class="modal" style="display:none;">
+    <footer><p style="text-align:center;color:#aaa"><span id="admin-trigger" style="cursor:pointer;">©</span></p></footer>
+
+    <div id="main-modal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title"></h2>
-                <span class="close-btn">&times;</span>
-            </div>
-            <div id="modal-body"></div>
+            <span class="close-btn">&times;</span>
+            <h2 id="modal-title"></h2><div id="modal-body"></div>
         </div>
     </div>
 
 <script>
-    // --- データ ---
-    // ★★★ここをお店の全リストに書き換えました★★★
     const allRestaurants = [
-        { id: "r001", name: "きときと食堂", category: "和食・食堂" },
-        { id: "r002", name: "meso", category: "洋食・レストラン" },
-        { id: "r003", name: "ユニコネルモンド", category: "洋食・レストラン" },
-        { id: "r004", name: "げん太", category: "和食・食堂" },
-        { id: "r005", name: "不二屋", category: "うどん・そば" },
-        { id: "r006", name: "イルコンパーニョ", category: "洋食・レストラン" },
-        { id: "r007", name: "リリーベリー", category: "洋食・レストラン" },
-        { id: "r008", name: "グリルはやし", category: "洋食・レストラン" },
-        { id: "r009", name: "隠れ家居酒屋 海彩", category: "居酒屋・バー" },
-        { id: "r010", name: "呑空", category: "居酒屋・バー" },
-        { id: "r011", name: "漁鮮亭うらの", category: "居酒屋・バー" },
-        { id: "r012", name: "旬彩きのした", category: "和食・食堂" },
-        { id: "r013", name: "鉄板大衆酒BAR はなび", category: "居酒屋・バー" },
-        { id: "r014", name: "中華そばげんじ", category: "ラーメン・中華" },
-        { id: "r015", name: "鯛そば真源", category: "ラーメン・中華" },
-        { id: "r016", name: "中華そば いちい", category: "ラーメン・中華" },
-        { id: "r017", name: "ラーメン豚鶏歓", category: "ラーメン・中華" },
-        { id: "r018", name: "自家製麺 らーめん てしお", category: "ラーメン・中華" },
-        { id: "r019", name: "番やのすし 小杉店", category: "寿司" },
-        { id: "r020", name: "歩寿司分家多聞", category: "寿司" },
-        { id: "r021", name: "繁寿し", category: "寿司" },
-        { id: "r022", name: "新湊寿し処 浪花鮨 本店", category: "寿司" },
-        { id: "r023", name: "清寿し", category: "寿司" },
-        { id: "r024", name: "Café de Repos", category: "カフェ・パン" },
-        { id: "r025", name: "一条珈琲", category: "カフェ・パン" },
-        { id: "r026", name: "番屋カフェ", category: "カフェ・パン" },
-        { id: "r027", name: "CAFE BRIO", category: "カフェ・パン" },
-        { id: "r028", name: "ルチャナ", category: "カフェ・パン" },
-        { id: "r029", name: "食堂 かわひがし", category: "和食・食堂" },
-        { id: "r030", name: "中山食堂", category: "和食・食堂" },
-        { id: "r031", name: "メシ屋 ほのぼの", category: "和食・食堂" },
-        { id: "r032", name: "きっときと亭", category: "和食・食堂" },
-        { id: "r033", name: "食堂510", category: "和食・食堂" },
-        { id: "r034", name: "牛角 小杉店", category: "焼肉" },
-        { id: "r035", name: "ミートハウス 山ちゃん", category: "焼肉" },
-        { id: "r036", name: "鉄木真 小杉店", category: "焼肉" },
-        { id: "r037", name: "ホルモン 光 小杉店", category: "焼肉" },
-        { id: "r038", name: "慶尚苑", category: "焼肉" },
-        { id: "r039", name: "うどん万福", category: "うどん・そば" },
-        { id: "r040", name: "百万石うどん 大門店", category: "うどん・そば" },
-        { id: "r041", name: "ゆで太郎 8号小杉白石店", category: "うどん・そば" },
-        { id: "r042", name: "ゆで太郎 射水布目沢店", category: "うどん・そば" },
-        { id: "r043", name: "萬盛庵", category: "うどん・そば" },
-        { id: "r044", name: "蕎麦 さ和", category: "うどん・そば" },
-        { id: "r045", name: "煮込亭", category: "うどん・そば" },
-        { id: "r046", name: "パンのさわや", category: "カフェ・パン" },
-        { id: "r047", name: "Boulangerie IMAMURA", category: "カフェ・パン" },
-        { id: "r048", name: "みなとや製パン", category: "カフェ・パン" },
-        { id: "r049", name: "手づくりパン B-CUBE", category: "カフェ・パン" },
-        { id: "r050", name: "パンドアール", category: "カフェ・パン" },
-        { id: "r051", name: "ショットバー リクオル", category: "居酒屋・バー" },
-        { id: "r052", name: "缶詰工場", category: "居酒屋・バー" },
-        { id: "r053", name: "BAR みやた", category: "居酒屋・バー" },
-        { id: "r054", name: "ザ バー ライズ", category: "居酒屋・バー" },
-        { id: "r055", name: "PUB POTSTILL", category: "居酒屋・バー" },
-        { id: "r056", name: "李白", category: "ラーメン・中華" },
-        { id: "r057", name: "８番らーめん 小杉店", category: "ラーメン・中華" },
-        { id: "r058", name: "麺屋ひろまる", category: "ラーメン・中華" },
-        { id: "r059", name: "大阪屋ショップ アプリオ店", category: "その他" },
-        { id: "r060", name: "uchikawa六角堂", category: "カフェ・パン" },
-        { id: "r061", name: "太閤山カントリークラブレストラン", category: "洋食・レストラン" },
-        { id: "r062", name: "きっときと市場", category: "その他" },
-        { id: "r063", name: "海王", category: "和食・食堂" },
-        { id: "r064", name: "割烹かわぐち", category: "和食・食堂" },
-        { id: "r065", name: "スパロー", category: "うどん・そば" },
-        { id: "r066", name: "すし食いねぇ！ 小杉店", category: "寿司" },
-        { id: "r067", name: "はま寿司 射水三ケ店", category: "寿司" },
-        { id: "r068", name: "かっぱ寿司 射水店", category: "寿司" },
-        { id: "r069", name: "カレーのチャンピオン 小杉店", category: "その他" },
-        { id: "r070", name: "CoCo壱番屋 射水小杉店", category: "その他" },
-        { id: "r071", name: "スターバックスコーヒー 富山小杉店", category: "カフェ・パン" },
-        { id: "r072", name: "マクドナルド 8号線小杉店", category: "その他" },
-        { id: "r073", name: "モスバーガー 射水小杉店", category: "その他" },
-        { id: "r074", name: "ガスト 小杉店", category: "洋食・レストラン" },
-        { id: "r075", name: "ミスタードーナツ パスコ・小杉ショップ", category: "カフェ・パン" }
+        { id: "r001", name: "きときと食堂" }, { id: "r002", name: "meso" }, { id: "r009", name: "隠れ家居酒屋 海彩" },
+        { id: "r014", name: "中華そばげんじ" }, { id: "r019", name: "番やのすし 小杉店" }, { id: "r024", name: "Café de Repos" }
     ];
 
+    let currentUser = null;
+    let isAdmin = false;
+
+    // --- 要素取得 ---
     const restaurantListEl = document.getElementById('restaurant-list');
-    const searchInputEl = document.getElementById('search-input');
     const modal = document.getElementById('main-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalBody = document.getElementById('modal-body');
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        setupCategoryButtons();
+    const userDisplay = document.getElementById('user-display');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const historyBtn = document.getElementById('history-btn');
+    const adminTrigger = document.getElementById('admin-trigger');
+    const pageBody = document.getElementById('page-body');
+
+    // --- イベントリスナー ---
+    document.addEventListener('DOMContentLoaded', updateUI);
+    document.querySelector('.close-btn').onclick = () => modal.style.display = 'none';
+    loginBtn.onclick = login;
+    logoutBtn.onclick = logout;
+    historyBtn.onclick = showHistory;
+    adminTrigger.onclick = enterAdminMode;
+
+    // --- UI制御 ---
+    function updateUI() {
+        if (currentUser) {
+            userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'inline-block';
+            historyBtn.style.display = 'inline-block';
+        } else {
+            userDisplay.textContent = '未ログイン';
+            loginBtn.style.display = 'inline-block';
+            logoutBtn.style.display = 'none';
+            historyBtn.style.display = 'none';
+        }
+        pageBody.classList.toggle('admin-mode', isAdmin);
         renderList();
-        searchInputEl.addEventListener('keyup', renderList);
-        document.querySelector('.close-btn').addEventListener('click', () => modal.style.display = 'none');
-    });
+    }
+
+    // --- 機能 ---
+    function login() {
+        const username = prompt("ユーザー名を入力してください:");
+        if (username) {
+            currentUser = username.trim();
+            updateUI();
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        isAdmin = false;
+        updateUI();
+    }
+    
+    function enterAdminMode() {
+        const pass = prompt("管理者パスワードを入力してください:");
+        if (pass === "admin123") { // ★実際のアプリでは絶対に使わない簡易パスワード
+            isAdmin = true;
+            if (!currentUser) login(); else updateUI();
+            alert("管理者モードになりました。");
+        } else {
+            alert("パスワードが違います。");
+        }
+    }
+
+    async function showDetails(id, name) {
+        if (currentUser) {
+            await fetch(`/api/history/${currentUser}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ restaurantId: id, restaurantName: name })
+            });
+        }
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(name + " 射水市")}`, '_blank');
+    }
+
+    async function showHistory() {
+        const res = await fetch(`/api/history/${currentUser}`);
+        const history = await res.json();
+        modalTitle.textContent = `${currentUser}の閲覧履歴`;
+        let body = '<ul>';
+        if (history.length > 0) {
+            history.forEach(item => {
+                body += `<li>${item.name} <small>(${new Date(item.viewedAt).toLocaleString()})</small></li>`;
+            });
+        } else {
+            body += '<li>閲覧履歴はありません。</li>';
+        }
+        body += '</ul>';
+        if (isAdmin) {
+            body += `<button class="delete-btn" style="display:inline-block" onclick="clearHistory('${currentUser}')">このユーザーの履歴を全て削除</button>`;
+        }
+        modalBody.innerHTML = body;
+        modal.style.display = 'block';
+    }
+    
+    async function clearHistory(username) {
+        if (confirm(`${username}の履歴を全て削除します。よろしいですか？`)) {
+            await fetch(`/api/history/${username}`, { method: 'DELETE' });
+            modal.style.display = 'none';
+        }
+    }
+
+    async function showReviews(id, name) {
+        const res = await fetch(`/api/reviews/${id}`);
+        const reviews = await res.json();
+        modalTitle.textContent = `${name} の口コミ`;
+        let body = '<div>';
+        reviews.forEach(r => {
+            body += `<div class="review-item"><p><strong>${r.username}:</strong> ${r.text}</p><small>${new Date(r.timestamp).toLocaleString()}</small><button class="delete-btn" onclick="deleteReview('${id}','${name}','${r.timestamp}')">削除</button></div>`;
+        });
+        body += `</div><form onsubmit="submitReview(event, '${id}', '${name}')">
+            <textarea placeholder="${currentUser ? '口コミを投稿する...' : 'ログインしてください'}"></textarea>
+            <button type="submit" ${!currentUser ? 'disabled' : ''}>投稿</button>
+            </form>`;
+        modalBody.innerHTML = body;
+        modal.style.display = 'block';
+    }
+
+    async function submitReview(event, id, name) {
+        event.preventDefault();
+        const text = event.target.querySelector('textarea').value;
+        if (!text) return;
+        await fetch(`/api/reviews/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: currentUser, text: text })
+        });
+        showReviews(id, name);
+    }
+    
+    async function deleteReview(id, name, timestamp) {
+        if (confirm("この口コミを削除しますか？")) {
+            await fetch(`/api/reviews/${id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timestamp: timestamp })
+            });
+            showReviews(id, name);
+        }
+    }
 
     function renderList() {
-        const activeCategory = document.querySelector('.category-btn.active').textContent;
-        const searchText = searchInputEl.value.toUpperCase();
-        const filtered = allRestaurants.filter(r => (activeCategory === 'すべて' || r.category === activeCategory) && r.name.toUpperCase().includes(searchText));
-        
         restaurantListEl.innerHTML = '';
-        document.getElementById('results-counter').textContent = `表示件数: ${filtered.length}件`;
-        
-        filtered.forEach(r => {
+        allRestaurants.forEach(r => {
             const li = document.createElement('li');
             li.className = 'restaurant-item';
-            li.innerHTML = `
-                <div class="restaurant-info"><span class="restaurant-name">${r.name}</span></div>
-                <div class="restaurant-buttons">
-                    <button class="reviews-btn" onclick="showReviews('${r.id}', '${r.name}')">口コミ</button>
-                    <button class="details-btn" onclick="showDetails('${r.id}', '${r.name}')">詳細</button>
+            li.innerHTML = `<span>${r.name}</span><div>
+                <button onclick="showReviews('${r.id}', '${r.name}')">口コミ</button>
+                <button onclick="showDetails('${r.id}', '${r.name}')">詳細</button>
                 </div>`;
             restaurantListEl.appendChild(li);
         });
     }
-
-    async function showReviews(restaurantId, restaurantName) {
-        modalTitle.textContent = `${restaurantName} の口コミ`;
-        
-        // サーバーから口コミを取得する
-        const response = await fetch(`/api/reviews/${restaurantId}`);
-        const reviews = await response.json();
-
-        let reviewsHtml = '<div>';
-        if (reviews && reviews.length > 0) {
-            reviews.forEach(review => {
-                reviewsHtml += `<p>${review}</p>`;
-            });
-        } else {
-            reviewsHtml += '<p>まだ口コミはありません。</p>';
-        }
-        reviewsHtml += '</div>';
-
-        modalBody.innerHTML = `
-            ${reviewsHtml}
-            <form onsubmit="submitReview(event, '${restaurantId}', '${restaurantName}')">
-                <textarea placeholder="口コミを投稿する..."></textarea>
-                <button type="submit">投稿</button>
-            </form>`;
-        modal.style.display = 'block';
-    }
-
-    async function submitReview(event, restaurantId, restaurantName) {
-        event.preventDefault();
-        const reviewText = event.target.querySelector('textarea').value;
-        if (!reviewText) return;
-
-        await fetch(`/api/reviews/${restaurantId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ review: reviewText })
-        });
-
-        showReviews(restaurantId, restaurantName);
-    }
-
-    function showDetails(restaurantId, restaurantName) {
-        window.open(`https://www.google.com/search?q=${encodeURIComponent(restaurantName + " 射水市")}`, '_blank');
-    }
-    
-    function setupCategoryButtons() {
-        const categories = ['すべて', ...new Set(allRestaurants.map(r => r.category))];
-        const container = document.getElementById('category-filters');
-        categories.forEach(cat => {
-            const btn = document.createElement('button');
-            btn.className = 'category-btn';
-            btn.textContent = cat;
-            if (cat === 'すべて') btn.classList.add('active');
-            btn.addEventListener('click', () => {
-                container.querySelector('.active').classList.remove('active');
-                btn.classList.add('active');
-                renderList();
-            });
-            container.appendChild(btn);
-        });
-    }
 </script>
-
 </body>
 </html>

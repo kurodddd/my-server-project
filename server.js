@@ -1,56 +1,92 @@
-// 必要な部品を読み込む
 const express = require('express');
-const fs = require('fs'); // ファイルを操作する部品
+const fs = require('fs');
 const path = require('path');
 
-// Expressを初期化
 const app = express();
-// ★公開時に書き換える場所
 const PORT = process.env.PORT || 3000;
 
-// JSON形式のデータを正しく受け取るための設定
 app.use(express.json());
-// フロントエンドのファイルがある場所を指定
 app.use(express.static(__dirname));
 
 const dbPath = path.join(__dirname, 'database.json');
 
-// --- APIエンドポイントの定義 ---
+// データベースファイルを読み書きするヘルパー関数
+const readDB = () => JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+const writeDB = (data) => fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
 
-// 特定のお店の口コミを取得するAPI
+// --- API エンドポイント ---
+
+// 口コミの取得
 app.get('/api/reviews/:restaurantId', (req, res) => {
-  const restaurantId = req.params.restaurantId;
-  fs.readFile(dbPath, 'utf8', (err, data) => {
-    if (err) return res.status(500).send('Error reading database');
-    const db = JSON.parse(data);
-    res.json(db.reviews[restaurantId] || []);
-  });
+    const db = readDB();
+    res.json(db.reviews[req.params.restaurantId] || []);
 });
 
-// 新しい口コミを投稿するAPI
+// 口コミの投稿
 app.post('/api/reviews/:restaurantId', (req, res) => {
-  const restaurantId = req.params.restaurantId;
-  const newReview = req.body.review;
-
-  fs.readFile(dbPath, 'utf8', (err, data) => {
-    if (err) return res.status(500).send('Error reading database');
-    const db = JSON.parse(data);
+    const db = readDB();
+    const { restaurantId } = req.params;
+    const { username, text } = req.body;
     
-    // 口コミを追加
     if (!db.reviews[restaurantId]) {
-      db.reviews[restaurantId] = [];
+        db.reviews[restaurantId] = [];
     }
+    const newReview = { username, text, timestamp: new Date().toISOString() };
     db.reviews[restaurantId].push(newReview);
-    
-    // データベースファイルに書き込む
-    fs.writeFile(dbPath, JSON.stringify(db, null, 2), (err) => {
-      if (err) return res.status(500).send('Error writing to database');
-      res.status(201).json(newReview);
-    });
-  });
+    writeDB(db);
+    res.status(201).json(newReview);
 });
 
-// --- サーバーの起動 ---
+// 口コミの削除（管理者用）
+app.delete('/api/reviews/:restaurantId', (req, res) => {
+    const db = readDB();
+    const { restaurantId } = req.params;
+    const { timestamp } = req.body; // タイムスタンプで一意に識別
+    
+    if (db.reviews[restaurantId]) {
+        db.reviews[restaurantId] = db.reviews[restaurantId].filter(review => review.timestamp !== timestamp);
+        writeDB(db);
+    }
+    res.status(204).send();
+});
+
+
+// 閲覧履歴の取得
+app.get('/api/history/:username', (req, res) => {
+    const db = readDB();
+    res.json(db.history[req.params.username] || []);
+});
+
+// 閲覧履歴の追加
+app.post('/api/history/:username', (req, res) => {
+    const db = readDB();
+    const { username } = req.params;
+    const { restaurantId, restaurantName } = req.body;
+
+    if (!db.history[username]) {
+        db.history[username] = [];
+    }
+    // 既に履歴にあれば何もしない（重複を防ぐ）
+    if (!db.history[username].some(item => item.id === restaurantId)) {
+        db.history[username].push({ id: restaurantId, name: restaurantName, viewedAt: new Date().toISOString() });
+        writeDB(db);
+    }
+    res.status(201).send();
+});
+
+// 閲覧履歴の削除（管理者用）
+app.delete('/api/history/:username', (req, res) => {
+    const db = readDB();
+    const { username } = req.params;
+    if (db.history[username]) {
+        delete db.history[username];
+        writeDB(db);
+    }
+    res.status(204).send();
+});
+
+
+// --- サーバー起動 ---
 app.listen(PORT, () => {
-  console.log(`サーバーが http://localhost:${PORT} で起動しました。`);
+    console.log(`サーバーが http://localhost:${PORT} で起動しました。`);
 });
