@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>射水市 飲食店検索 (最終版)</title>
+    <title>射水市 飲食店検索 (Ver. 1.1)</title>
     <style>
         :root{--primary-color:#007bff;--light-gray:#f4f7f9;--dark-gray:#34495e;--white:#fff;--danger-color:#dc3545}
         body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",sans-serif;margin:0;padding:1em;background-color:var(--light-gray);color:var(--dark-gray)}
@@ -37,7 +37,7 @@
 <body id="page-body">
     <div class="container">
         <div class="header">
-            <h1>射水市 飲食店検索 (最終版)</h1>
+            <h1>射水市 飲食店検索 (Ver. 1.1)</h1>
             <div class="user-controls">
                 <span id="user-display">未ログイン</span>
                 <button id="login-btn" class="main-btn">ログイン</button>
@@ -60,11 +60,10 @@
     </div></div>
 
 <script>
-    let allRestaurants = []; // 最初は空。サーバーから取得したデータが入る。
+    let allRestaurants = [];
     let currentUser = sessionStorage.getItem('currentUser');
     let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
 
-    // --- 主要なHTML要素をまとめて取得 ---
     const elements = {
         restaurantList: document.getElementById('restaurant-list'),
         modal: document.getElementById('main-modal'),
@@ -81,16 +80,10 @@
         resultsCounter: document.getElementById('results-counter')
     };
 
-    // --- 初期化処理 ---
     document.addEventListener('DOMContentLoaded', async () => {
-        // サーバーから飲食店リストを取得する
         await fetchRestaurants();
-
-        // 取得したデータでページを初期化
         setupCategoryButtons();
         updateUI();
-
-        // イベントリスナーを設定
         elements.searchInput.addEventListener('keyup', renderList);
         document.querySelector('.close-btn').onclick = () => elements.modal.style.display = 'none';
         elements.loginBtn.onclick = showLoginModal;
@@ -99,7 +92,6 @@
         elements.adminTrigger.onclick = enterAdminMode;
     });
     
-    // --- データ取得 ---
     async function fetchRestaurants() {
         try {
             elements.resultsCounter.textContent = 'お店の情報を取得中...';
@@ -112,7 +104,6 @@
         }
     }
 
-    // --- UI制御 ---
     function updateUI() {
         if (currentUser) {
             elements.userDisplay.textContent = `${currentUser}としてログイン中` + (isAdmin ? " (管理者)" : "");
@@ -126,7 +117,7 @@
             elements.historyBtn.style.display = 'none';
         }
         elements.pageBody.classList.toggle('admin-mode', isAdmin);
-        renderList(); // UI更新のたびにリストも再描画
+        renderList();
     }
 
     function renderList() {
@@ -137,7 +128,7 @@
             (r.name.toUpperCase().includes(searchText))
         );
         elements.resultsCounter.textContent = `表示件数: ${filtered.length}件`;
-        elements.restaurantList.innerHTML = ''; // リストをクリア
+        elements.restaurantList.innerHTML = '';
         filtered.forEach(r => {
             const li = document.createElement('li');
             li.className = 'restaurant-item';
@@ -152,9 +143,8 @@
     }
 
     function setupCategoryButtons() {
-        // 取得したデータからカテゴリのリストを動的に生成
         const categories = ['すべて', ...new Set(allRestaurants.map(r => r.category))];
-        elements.categoryFilters.innerHTML = ''; // カテゴリ欄をクリア
+        elements.categoryFilters.innerHTML = '';
         categories.forEach(cat => {
             const btn = document.createElement('button');
             btn.className = 'category-btn';
@@ -163,14 +153,12 @@
             btn.addEventListener('click', () => {
                 elements.categoryFilters.querySelector('.active')?.classList.remove('active');
                 btn.classList.add('active');
-                renderList(); // カテゴリクリックでリストを再描画
+                renderList();
             });
             elements.categoryFilters.appendChild(btn);
         });
     }
     
-    // --- ログイン・履歴・口コミ関連の関数（前回のコードと同じ） ---
-    // (省略せず、全て含めています)
     function showLoginModal() {
         elements.modalTitle.textContent = 'ログインまたは新規登録';
         elements.modalBody.innerHTML = `
